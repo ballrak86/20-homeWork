@@ -1,0 +1,81 @@
+---
+# tasks file for backup_server
+
+- name: Install epel
+  yum:
+    name: epel-release
+    state: present
+
+- name: Install borg
+  yum:
+    name: borgbackup
+    state: present
+
+- name: add user borg and create ssh key
+  user:
+    name: borg
+    shell: /bin/bash
+
+- name: change directory owner
+  file:
+    path: /home/borg/.ssh
+    state: directory
+    owner: borg
+    group: borg
+
+- name: add user borg and create ssh key
+  copy:
+    src: ../id_rsa.pub
+    dest: /home/borg/.ssh/authorized_keys
+    owner: borg
+    group: borg
+    mode: '0600'
+
+- name: format sdb
+  parted:
+    device: /dev/sdb
+    number: 2
+    state: present
+
+- name: Create a ext4 filesystem on /dev/sdb1
+  filesystem:
+    fstype: ext4
+    dev: /dev/sdb1
+
+- name: Mount sdb
+  mount:
+    path: /mnt/
+    src: /dev/sdb1
+    fstype: ext4
+    state: mounted
+
+- name: create directory
+  file:
+    path: /mnt/backup/
+    state: directory
+    owner: borg
+    group: borg
+    recurse: yes
+
+- name: create symlink
+  file:
+    src: /mnt/backup/
+    dest: /var/backup
+    state: link
+    owner: borg
+    group: borg
+
+- name: init borg repository
+  shell:
+    cmd: borg init --encryption=repokey /var/backup/
+  environment:
+    BORG_NEW_PASSPHRASE: 'Otus1234'
+
+- name: change directory owner recurse
+  file:
+    path: /mnt/backup/
+    state: directory
+    owner: borg
+    group: borg
+    recurse: yes
+ 

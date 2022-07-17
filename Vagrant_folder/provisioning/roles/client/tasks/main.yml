@@ -1,0 +1,44 @@
+---
+# tasks file for client
+
+- name: Install epel
+  yum:
+    name: epel-release
+    state: present
+
+- name: Install borg
+  yum:
+    name: borgbackup
+    state: present
+
+- name: create ssh key to root
+  user:
+    name: root
+    generate_ssh_key: yes
+
+- name: Copy sert
+  fetch:
+    src: /root/.ssh/id_rsa.pub
+    dest: ../
+    flat: yes
+
+- name: Copy file to stark borg
+  copy: src={{ item.src }} dest={{ item.dest }}
+  with_items:
+    - { src: 'files/borg-backup.service', dest: '/etc/systemd/system/borg-backup.service' }
+    - { src: 'files/borg-backup.timer', dest: '/etc/systemd/system/borg-backup.timer'}
+
+- name: enable and start timer borg-backup
+  systemd:
+    name: borg-backup.timer
+    enabled: yes
+    state: started
+
+- name: change StrictHostKeyChecking
+  lineinfile:
+    path: /etc/ssh/ssh_config
+    regexp: 'StrictHostKeyChecking'
+    line: StrictHostKeyChecking no
+    state: present
+  notify:
+    - restart sshd
